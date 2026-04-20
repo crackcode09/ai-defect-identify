@@ -1,0 +1,24 @@
+# Dataset — too large for GitHub
+dataset/
+archive/
+archive.zip
+*.zip
+
+# Trained model — regenerate with train_model.py
+models/
+
+# Runtime directories
+captured/
+ncr_reports/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+
+# OS
+.DS_Store
+Thumbs.db

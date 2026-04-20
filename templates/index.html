@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Defect Inspector — NCR System</title>
+    <style>
+        :root {
+            --primary: #1a56db;
+            --primary-light: #e1effe;
+            --danger: #dc2626;
+            --danger-light: #fee2e2;
+            --success: #16a34a;
+            --success-light: #dcfce7;
+            --warning: #d97706;
+            --warning-light: #fef3c7;
+            --gray-50: #f9fafb;
+            --gray-100: #f3f4f6;
+            --gray-200: #e5e7eb;
+            --gray-300: #d1d5db;
+            --gray-500: #6b7280;
+            --gray-700: #374151;
+            --gray-900: #111827;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: var(--gray-50);
+            color: var(--gray-900);
+            line-height: 1.5;
+        }
+
+        /* --- Header --- */
+        .header {
+            background: var(--primary);
+            color: white;
+            padding: 16px 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .header h1 { font-size: 20px; font-weight: 600; }
+        .header .status-badge {
+            font-size: 12px;
+            padding: 4px 12px;
+            border-radius: 12px;
+            font-weight: 500;
+        }
+        .status-ready { background: var(--success-light); color: var(--success); }
+        .status-error { background: var(--danger-light); color: var(--danger); }
+
+        /* --- Layout --- */
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 24px;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 768px) {
+            .grid { grid-template-columns: 1fr; }
+        }
+
+        /* --- Cards --- */
+        .card {
+            background: white;
+            border-radius: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+            border: 1px solid var(--gray-200);
+            overflow: hidden;
+        }
+        .card-header {
+            padding: 16px 20px;
+            border-bottom: 1px solid var(--gray-200);
+            font-weight: 600;
+            font-size: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .card-body { padding: 20px; }
+
+        /* --- Inspection Panel --- */
+        .capture-area {
+            background: var(--gray-100);
+            border: 2px dashed var(--gray-300);
+            border-radius: 8px;
+            min-height: 300px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            margin-bottom: 16px;
+            position: relative;
+            overflow: hidden;
+        }
+        .capture-area img {
+            max-width: 100%;
+            max-height: 400px;
+            border-radius: 6px;
+        }
+        .capture-placeholder {
+            text-align: center;
+            color: var(--gray-500);
+        }
+        .capture-placeholder .icon { font-size: 48px; margin-bottom: 8px; }
+
+        /* --- Buttons --- */
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.15s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+        .btn-primary { background: var(--primary); color: white; }
+        .btn-primary:hover:not(:disabled) { background: #1e40af; }
+        .btn-danger { background: var(--danger); color: white; }
+        .btn-danger:hover:not(:disabled) { background: #b91c1c; }
+        .btn-success { background: var(--success); color: white; }
+        .btn-success:hover:not(:disabled) { background: #15803d; }
+        .btn-outline {
+            background: white;
+            color: var(--gray-700);
+            border: 1px solid var(--gray-300);
+        }
+        .btn-outline:hover:not(:disabled) { background: var(--gray-100); }
+        .btn-block { width: 100%; justify-content: center; }
+        .btn-lg { padding: 14px 28px; font-size: 16px; }
+
+        .btn-group { display: flex; gap: 12px; }
+
+        /* --- Detection Result --- */
+        .result-banner {
+            padding: 16px 20px;
+            border-radius: 8px;
+            margin-bottom: 16px;
+            display: none;
+        }
+        .result-pass {
+            background: var(--success-light);
+            border: 1px solid var(--success);
+            color: #166534;
+        }
+        .result-fail {
+            background: var(--danger-light);
+            border: 1px solid var(--danger);
+            color: #991b1b;
+        }
+        .result-banner .result-type {
+            font-size: 20px;
+            font-weight: 700;
+            text-transform: uppercase;
+        }
+        .result-banner .result-detail { font-size: 14px; margin-top: 4px; }
+
+        .score-bars { margin-top: 12px; }
+        .score-bar {
+            display: flex;
+            align-items: center;
+            margin-bottom: 6px;
+            font-size: 13px;
+        }
+        .score-bar .label { width: 80px; text-transform: capitalize; }
+        .score-bar .bar-track {
+            flex: 1;
+            height: 8px;
+            background: var(--gray-200);
+            border-radius: 4px;
+            overflow: hidden;
+            margin: 0 10px;
+        }
+        .score-bar .bar-fill {
+            height: 100%;
+            border-radius: 4px;
+            transition: width 0.5s ease;
+        }
+        .score-bar .pct { width: 45px; text-align: right; font-weight: 500; }
+
+        /* --- NCR Form --- */
+        .form-group {
+            margin-bottom: 16px;
+        }
+        .form-group label {
+            display: block;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--gray-700);
+            margin-bottom: 4px;
+        }
+        .form-group input,
+        .form-group select,
+        .form-group textarea {
+            width: 100%;
+            padding: 10px 12px;
+            border: 1px solid var(--gray-300);
+            border-radius: 6px;
+            font-size: 14px;
+            font-family: inherit;
+            transition: border-color 0.15s;
+        }
+        .form-group input:focus,
+        .form-group select:focus,
+        .form-group textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(26,86,219,0.1);
+        }
+        .form-group textarea { min-height: 80px; resize: vertical; }
+        .form-group .auto-filled {
+            background: var(--primary-light);
+            border-color: var(--primary);
+        }
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 12px;
+        }
+
+        .section-title {
+            font-size: 14px;
+            font-weight: 700;
+            color: var(--gray-500);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin: 20px 0 12px;
+            padding-bottom: 6px;
+            border-bottom: 1px solid var(--gray-200);
+        }
+
+        /* --- Upload area --- */
+        .upload-area {
+            margin-top: 12px;
+            text-align: center;
+        }
+        .upload-area input[type="file"] { display: none; }
+        .upload-label {
+            display: inline-block;
+            padding: 8px 16px;
+            background: var(--gray-100);
+            border: 1px dashed var(--gray-300);
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 13px;
+            color: var(--gray-500);
+        }
+        .upload-label:hover { background: var(--gray-200); }
+
+        /* --- History --- */
+        .history-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--gray-100);
+            font-size: 14px;
+        }
+        .history-item:last-child { border-bottom: none; }
+        .history-defect {
+            font-size: 12px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-weight: 500;
+        }
+
+        /* --- Toast --- */
+        .toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 16px 24px;
+            border-radius: 8px;
+            color: white;
+            font-weight: 500;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            transform: translateY(-20px);
+            opacity: 0;
+            transition: all 0.3s ease;
+            z-index: 1000;
+        }
+        .toast.show { transform: translateY(0); opacity: 1; }
+        .toast-success { background: var(--success); }
+        .toast-error { background: var(--danger); }
+
+        /* --- Spinner --- */
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid var(--gray-200);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+        @keyframes spin { to { transform: rotate(360deg); } }
+
+        .inspecting-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(255,255,255,0.85);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            font-weight: 500;
+            color: var(--gray-700);
+        }
+    </style>
+</head>
+<body>
+
+<!-- Header -->
+<div class="header">
+    <h1>🔍 Defect Inspector — NCR System</h1>
+    <span class="status-badge status-ready" id="statusBadge">● System Ready</span>
+</div>
+
+<div class="container">
+    <div class="grid">
+
+        <!-- LEFT: Inspection Panel -->
+        <div>
+            <div class="card">
+                <div class="card-header">
+                    Inspection Camera
+                    <span style="font-size:12px; color:var(--gray-500)" id="inferenceTime"></span>
+                </div>
+                <div class="card-body">
+                    <!-- Capture Area -->
+                    <div class="capture-area" id="captureArea">
+                        <div class="capture-placeholder" id="placeholder">
+                            <div class="icon">📷</div>
+                            <p><strong>Click "Inspect" to capture & analyze</strong></p>
+                            <p style="font-size:13px; margin-top:4px">Or upload an image below</p>
+                        </div>
+                        <img id="capturedImage" style="display:none" alt="Captured image">
+                    </div>
+
+                    <!-- Buttons -->
+                    <div class="btn-group">
+                        <button class="btn btn-primary btn-lg" style="flex:1" onclick="runInspection()" id="inspectBtn">
+                            📷 Inspect
+                        </button>
+                        <button class="btn btn-outline" onclick="resetInspection()" id="resetBtn">
+                            ↺ Reset
+                        </button>
+                    </div>
+
+                    <!-- Upload fallback -->
+                    <div class="upload-area">
+                        <input type="file" id="fileInput" accept="image/*" onchange="uploadImage(event)">
+                        <label for="fileInput" class="upload-label">
+                            📁 Or upload an image to test
+                        </label>
+                    </div>
+
+                    <!-- Result Banner -->
+                    <div id="resultBanner" class="result-banner" style="margin-top:16px">
+                        <div class="result-type" id="resultType"></div>
+                        <div class="result-detail" id="resultDetail"></div>
+                        <div class="score-bars" id="scoreBars"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- RIGHT: NCR Form -->
+        <div>
+            <div class="card">
+                <div class="card-header">
+                    Non-Conformance Report (NCR)
+                    <span style="font-size:13px; color:var(--gray-500)" id="ncrNumber">New Report</span>
+                </div>
+                <div class="card-body">
+                    <!-- Auto-filled section -->
+                    <div class="section-title">Detection Results (Auto-filled)</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Defect Type</label>
+                            <select id="defectType" class="auto-filled">
+                                <option value="">— Run inspection first —</option>
+                                <option value="scratch">Scratch</option>
+                                <option value="dent">Dent</option>
+                                <option value="crack">Crack</option>
+                                <option value="stain">Stain</option>
+                                <option value="chip">Chip</option>
+                                <option value="other">Other</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label>AI Confidence</label>
+                            <input type="text" id="confidence" readonly class="auto-filled"
+                                   placeholder="—" style="background:var(--gray-50)">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Inspection ID</label>
+                        <input type="text" id="inspectionId" readonly class="auto-filled"
+                               placeholder="Auto-generated after inspection" style="background:var(--gray-50)">
+                    </div>
+
+                    <!-- Manual section -->
+                    <div class="section-title">Part Information</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Part Number *</label>
+                            <input type="text" id="partNumber" placeholder="e.g. PT-10042">
+                        </div>
+                        <div class="form-group">
+                            <label>Part Name</label>
+                            <input type="text" id="partName" placeholder="e.g. Housing Cover">
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Batch / Lot Number</label>
+                            <input type="text" id="batchLot" placeholder="e.g. LOT-2025-0331">
+                        </div>
+                        <div class="form-group">
+                            <label>Severity</label>
+                            <select id="severity">
+                                <option value="Minor">Minor</option>
+                                <option value="Major">Major</option>
+                                <option value="Critical">Critical</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Qty Inspected</label>
+                            <input type="number" id="qtyInspected" value="1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>Qty Rejected</label>
+                            <input type="number" id="qtyRejected" value="1" min="0">
+                        </div>
+                    </div>
+
+                    <div class="section-title">Defect Details</div>
+
+                    <div class="form-group">
+                        <label>Defect Location on Part</label>
+                        <input type="text" id="defectLocation" placeholder="e.g. Top-left corner, edge surface">
+                    </div>
+
+                    <div class="form-group">
+                        <label>Description / Notes</label>
+                        <textarea id="description" placeholder="Describe the defect in detail..."></textarea>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Immediate Action Taken</label>
+                        <textarea id="immediateAction"
+                                  placeholder="e.g. Part quarantined, production line paused..."
+                                  style="min-height:60px"></textarea>
+                    </div>
+
+                    <div class="section-title">Personnel</div>
+
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label>Inspector Name</label>
+                            <input type="text" id="inspectorName" placeholder="Your name">
+                        </div>
+                        <div class="form-group">
+                            <label>Supervisor Name</label>
+                            <input type="text" id="supervisorName" placeholder="Supervisor name">
+                        </div>
+                    </div>
+
+                    <!-- Submit -->
+                    <div style="margin-top:24px">
+                        <button class="btn btn-danger btn-block btn-lg" onclick="submitNCR()" id="submitBtn">
+                            📋 Submit NCR Report
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Recent NCRs -->
+            <div class="card" style="margin-top:24px">
+                <div class="card-header">
+                    Recent NCR Reports
+                    <button class="btn btn-outline" onclick="loadHistory()" style="padding:4px 12px; font-size:12px">
+                        Refresh
+                    </button>
+                </div>
+                <div id="historyList" style="max-height:250px; overflow-y:auto;">
+                    <div class="history-item" style="color:var(--gray-500); justify-content:center">
+                        No reports yet
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Toast notification -->
+<div class="toast" id="toast"></div>
+
+<script>
+    // Current inspection data
+    let currentResult = null;
+
+    // --- Inspection ---
+    async function runInspection() {
+        const btn = document.getElementById('inspectBtn');
+        const area = document.getElementById('captureArea');
+
+        btn.disabled = true;
+        btn.textContent = '⏳ Inspecting...';
+
+        // Show spinner
+        let overlay = document.createElement('div');
+        overlay.className = 'inspecting-overlay';
+        overlay.innerHTML = '<div class="spinner"></div><div>Capturing & analyzing...</div>';
+        area.appendChild(overlay);
+
+        try {
+            const response = await fetch('/inspect', { method: 'POST' });
+            const result = await response.json();
+
+            if (result.error) {
+                showToast(result.error, 'error');
+                return;
+            }
+
+            currentResult = result;
+            displayResult(result);
+            autoFillNCR(result);
+        } catch (err) {
+            showToast('Connection error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📷 Inspect';
+            const ov = area.querySelector('.inspecting-overlay');
+            if (ov) ov.remove();
+        }
+    }
+
+    // --- Upload Image ---
+    async function uploadImage(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+
+        const btn = document.getElementById('inspectBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Analyzing...';
+
+        const formData = new FormData();
+        formData.append('image', file);
+
+        try {
+            const response = await fetch('/inspect/upload', {
+                method: 'POST',
+                body: formData
+            });
+            const result = await response.json();
+
+            if (result.error) {
+                showToast(result.error, 'error');
+                return;
+            }
+
+            currentResult = result;
+            displayResult(result);
+            autoFillNCR(result);
+        } catch (err) {
+            showToast('Upload error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📷 Inspect';
+        }
+    }
+
+    // --- Display Detection Result ---
+    function displayResult(result) {
+        // Show captured image
+        const img = document.getElementById('capturedImage');
+        img.src = result.image_path;
+        img.style.display = 'block';
+        document.getElementById('placeholder').style.display = 'none';
+
+        // Show result banner
+        const banner = document.getElementById('resultBanner');
+        banner.style.display = 'block';
+
+        if (result.is_defective) {
+            banner.className = 'result-banner result-fail';
+            document.getElementById('resultType').textContent =
+                `⚠ DEFECT: ${result.defect_type}`;
+            document.getElementById('resultDetail').textContent =
+                `Confidence: ${result.confidence_pct}%`;
+        } else {
+            banner.className = 'result-banner result-pass';
+            document.getElementById('resultType').textContent = '✓ PASS — No Defect';
+            document.getElementById('resultDetail').textContent =
+                `Confidence: ${result.confidence_pct}%`;
+        }
+
+        // Show all scores as bars
+        const barsEl = document.getElementById('scoreBars');
+        barsEl.innerHTML = '';
+        if (result.all_scores) {
+            for (const [name, pct] of Object.entries(result.all_scores)) {
+                const color = name === 'good' ? 'var(--success)' :
+                              pct > 50 ? 'var(--danger)' : 'var(--warning)';
+                barsEl.innerHTML += `
+                    <div class="score-bar">
+                        <span class="label">${name}</span>
+                        <div class="bar-track">
+                            <div class="bar-fill" style="width:${pct}%; background:${color}"></div>
+                        </div>
+                        <span class="pct">${pct}%</span>
+                    </div>`;
+            }
+        }
+
+        // Show inference time
+        document.getElementById('inferenceTime').textContent =
+            `${result.inference_time_ms}ms`;
+    }
+
+    // --- Auto-fill NCR Form ---
+    function autoFillNCR(result) {
+        document.getElementById('defectType').value = result.defect_type;
+        document.getElementById('confidence').value = result.confidence_pct + '%';
+        document.getElementById('inspectionId').value = result.inspection_id;
+
+        // Auto-set severity based on confidence
+        if (result.confidence_pct > 90) {
+            document.getElementById('severity').value = 'Critical';
+        } else if (result.confidence_pct > 70) {
+            document.getElementById('severity').value = 'Major';
+        } else {
+            document.getElementById('severity').value = 'Minor';
+        }
+
+        // Pre-fill description
+        if (result.is_defective) {
+            document.getElementById('description').value =
+                `AI detected "${result.defect_type}" defect with ${result.confidence_pct}% confidence. ` +
+                `Inspection ID: ${result.inspection_id}. Please verify visually.`;
+        }
+    }
+
+    // --- Submit NCR ---
+    async function submitNCR() {
+        const partNumber = document.getElementById('partNumber').value.trim();
+        if (!partNumber) {
+            showToast('Please enter a Part Number', 'error');
+            document.getElementById('partNumber').focus();
+            return;
+        }
+
+        const ncrData = {
+            inspection_id: document.getElementById('inspectionId').value,
+            defect_type: document.getElementById('defectType').value,
+            confidence: currentResult ? currentResult.confidence_pct : 0,
+            image_path: currentResult ? currentResult.image_path : '',
+            part_number: partNumber,
+            part_name: document.getElementById('partName').value,
+            batch_lot: document.getElementById('batchLot').value,
+            quantity_inspected: parseInt(document.getElementById('qtyInspected').value) || 0,
+            quantity_rejected: parseInt(document.getElementById('qtyRejected').value) || 0,
+            severity: document.getElementById('severity').value,
+            defect_location: document.getElementById('defectLocation').value,
+            description: document.getElementById('description').value,
+            immediate_action: document.getElementById('immediateAction').value,
+            inspector_name: document.getElementById('inspectorName').value,
+            supervisor_name: document.getElementById('supervisorName').value,
+        };
+
+        const btn = document.getElementById('submitBtn');
+        btn.disabled = true;
+        btn.textContent = '⏳ Submitting...';
+
+        try {
+            const response = await fetch('/ncr/submit', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(ncrData)
+            });
+            const result = await response.json();
+
+            if (result.success) {
+                showToast(`${result.ncr_number} created successfully!`, 'success');
+                document.getElementById('ncrNumber').textContent = result.ncr_number;
+                loadHistory();
+            } else {
+                showToast('Failed to create NCR', 'error');
+            }
+        } catch (err) {
+            showToast('Error: ' + err.message, 'error');
+        } finally {
+            btn.disabled = false;
+            btn.textContent = '📋 Submit NCR Report';
+        }
+    }
+
+    // --- Reset ---
+    function resetInspection() {
+        currentResult = null;
+        document.getElementById('capturedImage').style.display = 'none';
+        document.getElementById('placeholder').style.display = 'block';
+        document.getElementById('resultBanner').style.display = 'none';
+        document.getElementById('inferenceTime').textContent = '';
+        document.getElementById('ncrNumber').textContent = 'New Report';
+
+        // Clear auto-filled fields
+        document.getElementById('defectType').value = '';
+        document.getElementById('confidence').value = '';
+        document.getElementById('inspectionId').value = '';
+        document.getElementById('description').value = '';
+    }
+
+    // --- Load History ---
+    async function loadHistory() {
+        try {
+            const response = await fetch('/ncr/history');
+            const reports = await response.json();
+
+            const list = document.getElementById('historyList');
+            if (reports.length === 0) {
+                list.innerHTML = '<div class="history-item" style="color:var(--gray-500); justify-content:center">No reports yet</div>';
+                return;
+            }
+
+            list.innerHTML = reports.map(r => {
+                const severityColor = r.severity === 'Critical' ? 'var(--danger)' :
+                                      r.severity === 'Major' ? 'var(--warning)' : 'var(--gray-500)';
+                const bg = r.severity === 'Critical' ? 'var(--danger-light)' :
+                           r.severity === 'Major' ? 'var(--warning-light)' : 'var(--gray-100)';
+                const date = new Date(r.created_at).toLocaleString();
+                return `
+                    <div class="history-item">
+                        <div>
+                            <strong>${r.ncr_number}</strong>
+                            <div style="font-size:12px; color:var(--gray-500)">${r.part_number} — ${date}</div>
+                        </div>
+                        <span class="history-defect" style="background:${bg}; color:${severityColor}">
+                            ${r.defect_type} (${r.severity})
+                        </span>
+                    </div>`;
+            }).join('');
+        } catch (err) {
+            console.error('Failed to load history:', err);
+        }
+    }
+
+    // --- Toast ---
+    function showToast(message, type = 'success') {
+        const toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.className = `toast toast-${type} show`;
+        setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+
+    // --- Init ---
+    async function checkStatus() {
+        try {
+            const response = await fetch('/status');
+            const status = await response.json();
+            const badge = document.getElementById('statusBadge');
+            if (status.model_loaded && status.camera_available) {
+                badge.textContent = '● System Ready';
+                badge.className = 'status-badge status-ready';
+            } else {
+                let issues = [];
+                if (!status.model_loaded) issues.push('No model');
+                if (!status.camera_available) issues.push('No camera');
+                badge.textContent = '○ ' + issues.join(', ');
+                badge.className = 'status-badge status-error';
+            }
+        } catch (err) {
+            console.error('Status check failed:', err);
+        }
+    }
+
+    // On page load
+    checkStatus();
+    loadHistory();
+</script>
+</body>
+</html>

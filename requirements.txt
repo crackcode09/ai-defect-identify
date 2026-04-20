@@ -1,0 +1,17 @@
+# Defect Inspector — Requirements
+# Install with: pip install -r requirements.txt
+
+# Core ML
+tensorflow>=2.13.0        # AI model training & inference
+# tflite-runtime           # Use this INSTEAD of tensorflow on Raspberry Pi (lighter)
+numpy>=1.24.0
+
+# Image processing
+opencv-python-headless>=4.8.0
+Pillow>=10.0.0
+
+# Web app
+flask>=3.0.0
+
+# Raspberry Pi camera (install only on Pi)
+# picamera2>=0.3.12
